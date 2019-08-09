@@ -28,7 +28,10 @@ declare module "rethinkdb" {
      *
      * See: https://rethinkdb.com/api/javascript/connect/
      */
-    export function connect(opts: ConnectionOptions, cb: (err: ReqlDriverError, conn: Connection) => void): void;
+    export function connect(
+        opts: ConnectionOptions,
+        cb: (err: ReqlDriverError, conn: Connection) => void
+    ): void;
     export function connect(host: string, cb: (err: ReqlDriverError, conn: Connection) => void): void;
     export function connect(opts: ConnectionOptions): Promise<Connection>;
     export function connect(host: string): Promise<Connection>;
@@ -58,7 +61,11 @@ declare module "rethinkdb" {
     export function epochTime(): Expression<Time>;
 
     // Control Structures
-    export function branch(test: Expression<boolean>, trueBranch: Expression<any>, falseBranch: Expression<any>): Expression<any>;
+    export function branch(
+        test: Expression<boolean>,
+        trueBranch: Expression<any>,
+        falseBranch: Expression<any>
+    ): Expression<any>;
 
     /**
      * Create a javascript expression.
@@ -126,7 +133,7 @@ declare module "rethinkdb" {
         ssl?: TLSConnectionOptions;
     }
 
-    type waitFor = 'ready_for_outdated_reads' | 'ready_for_reads' | 'ready_for_writes';
+    type waitFor = "ready_for_outdated_reads" | "ready_for_reads" | "ready_for_writes";
 
     interface WaitOptions {
         waitFor?: waitFor;
@@ -191,6 +198,12 @@ declare module "rethinkdb" {
         replace(obj: Object, options?: UpdateOptions): Operation<WriteResult>;
         replace(expr: ExpressionFunction<any>): Operation<WriteResult>;
         delete(options?: UpdateOptions): Operation<WriteResult>;
+
+        // Manipulation
+        pluck<TObjectType extends object>(...props: string[]): Operation<TObjectType> & Writeable;
+        without<TObjectType extends object>(...props: string[]): Operation<TObjectType> & Writeable;
+        // pluck(...props: string[]): Writeable;
+        // without(...props: string[]): Writeable;
     }
 
     /**
@@ -258,52 +271,68 @@ declare module "rethinkdb" {
 
     interface Polygon extends Geometry { }
 
+    type Key = string | number | boolean | Date;
+
     interface Table extends Sequence, HasFields<Sequence> {
         indexCreate(name: string, index?: IndexFunction<any>): Operation<CreateResult>;
         indexDrop(name: string): Operation<DropResult>;
         indexList(): Operation<string[]>;
-        indexWait(name?: string): Operation<Array<{ index: string, ready: true, function: number, multi: boolean, geo: boolean, outdated: boolean }>>;
+        indexWait(
+            name?: string
+        ): Operation<
+        Array<{
+            index: string;
+            ready: true;
+            function: number;
+            multi: boolean;
+            geo: boolean;
+            outdated: boolean;
+        }>
+        >;
 
         insert(obj: any[], options?: InsertOptions): Operation<WriteResult>;
         insert(obj: any, options?: InsertOptions): Operation<WriteResult>;
 
-        get<TObjectType extends object>(key: string): Operation<TObjectType | null> & Writeable;
+        get<TObjectType extends object>(key: Key): Operation<TObjectType | null> & Writeable;
+        get<TObjectType extends object>(
+            key: Expression<Key>
+        ): Operation<TObjectType | null> & Writeable;
 
         /**
          * Get all documents matching one or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
-        getAll(...keys: string[]): Sequence;
+        getAll(...keys: Key[]): Sequence;
         /**
          * Get all documents matching a key on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
-        getAll(key: string, index?: Index): Sequence; // without index defaults to primary key
+        getAll(key: Key | Key[], index?: Index): Sequence; // without index defaults to primary key
         /**
          * Get all documents matching 2 or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
-        getAll(key: string, key2: string, index?: Index): Sequence; // without index defaults to primary key
+        getAll(key: Key | Key[], key2: Key | Key[], index?: Index): Sequence; // without index defaults to primary key
         /**
          * Get all documents matching 2 or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
-        getAll(key: string, key2: string, key3: string, index?: Index): Sequence; // without index defaults to primary key
+        getAll(key: Key | Key[], key2: Key | Key[], key3: Key | Key[], index?: Index): Sequence; // without index defaults to primary key
         /**
          * Get all documents matching 2 or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
-        getAll(key: string, key2: string, key3: string, key4: string, index?: Index): Sequence; // without index defaults to primary key
+        getAll(key: Key | Key[], key2: Key | Key[], key3: Key | Key[], key4: Key | Key[], index?: Index): Sequence; // without index defaults to primary key
         /**
          * Get all documents matching 2 or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
         getAll(
-            key: string,
-            key2: string,
-            key3: string,
-            key4: string,
-            key5: string,
+            key: Key | Key[],
+            key2: Key | Key[],
+            key3: Key | Key[],
+            key4: Key | Key[],
+            key5: Key | Key[],
             index?: Index
         ): Sequence; // without index defaults to primary key
         /**
@@ -365,8 +394,7 @@ declare module "rethinkdb" {
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/) and
          * [compound indexes](https://www.rethinkdb.com/docs/secondary-indexes/javascript/#compound-indexes)
          */
-        getAll(keys: Expression<any[]>, index: Index): Sequence;
-
+        getAll(keys: Expression<any>[], index: Index): Sequence;
 
         getIntersecting(geometry: Geometry, index: Index): Sequence;
         wait(WaitOptions?: WaitOptions): Operation<WaitResult>;
@@ -377,11 +405,11 @@ declare module "rethinkdb" {
 
         /**
          * Turn a sequence into an array or object, necessary when merging a sequence.
-         * 
+         *
          * See: https://www.rethinkdb.com/api/javascript/coerce_to/
          */
-        coerceTo(key: 'array'): Expression<any[]>;
-        coerceTo(key: 'object'): Expression<Object>;
+        coerceTo(key: "array"): Expression<any[]>;
+        coerceTo(key: "object"): Expression<Object>;
 
         merge(object: Object): Sequence;
         merge(cb: ExpressionFunction<Expression<any>>): Sequence;
@@ -407,7 +435,11 @@ declare module "rethinkdb" {
         innerJoin(sequence: Sequence, join: JoinFunction<boolean>): Sequence;
         outerJoin(sequence: Sequence, join: JoinFunction<boolean>): Sequence;
         eqJoin(leftAttribute: string, rightSequence: Sequence, index?: Index): Sequence;
-        eqJoin(leftAttribute: ExpressionFunction<any>, rightSequence: Sequence, index?: Index): Sequence;
+        eqJoin(
+            leftAttribute: ExpressionFunction<any>,
+            rightSequence: Sequence,
+            index?: Index
+        ): Sequence;
         zip(): Sequence;
 
         // Transform
@@ -430,16 +462,26 @@ declare module "rethinkdb" {
         reduce(r: ReduceFunction<any>, base?: any): Expression<any>;
         count(): Expression<number>;
         distinct(): Sequence;
-        groupedMapReduce(group: ExpressionFunction<any>, map: ExpressionFunction<any>, reduce: ReduceFunction<any>, base?: any): Sequence;
+        groupedMapReduce(
+            group: ExpressionFunction<any>,
+            map: ExpressionFunction<any>,
+            reduce: ReduceFunction<any>,
+            base?: any
+        ): Sequence;
         groupBy(...aggregators: Aggregator[]): Expression<Object>; // TODO: reduction object
         contains(prop: string): Expression<boolean>;
 
         // Manipulation
-        pluck(...props: string[]): Sequence;
-        without(...props: string[]): Sequence;
+        pluck<TObjectType extends object>(...props: string[]): Sequence & Operation<TObjectType>;
+        without<TObjectType extends object>(...props: string[]): Sequence & Operation<TObjectType>;
+        // pluck(...props: string[]): Sequence;
+        // without(...props: string[]): Sequence;
     }
 
-    type IndexFunction<U> = Expression<U> | Expression<U>[] | ((doc: Expression<any>) => Expression<U> | Expression<U>[]);
+    type IndexFunction<U> =
+        | Expression<U>
+        | Expression<U>[]
+        | ((doc: Expression<any>) => Expression<U> | Expression<U>[]);
 
     interface ExpressionFunction<U> {
         (doc: Expression<any>): Expression<U>;
@@ -454,14 +496,14 @@ declare module "rethinkdb" {
     }
 
     interface InsertOptions {
-        conflict?: 'error' | 'replace' | 'update' | ((id: string, oldDoc: any, newDoc: any) => any);
-        durability?: 'hard' | 'soft';
-        returnChanges?: boolean | 'always';
+        conflict?: "error" | "replace" | "update" | ((id: string, oldDoc: any, newDoc: any) => any);
+        durability?: "hard" | "soft";
+        returnChanges?: boolean | "always";
     }
 
     interface UpdateOptions {
         nonAtomic?: boolean;
-        durability?: 'hard' | 'soft';
+        durability?: "hard" | "soft";
         returnChanges?: boolean;
     }
 
@@ -469,11 +511,11 @@ declare module "rethinkdb" {
         /**
          * Unit for the distance. Possible values are `m` (meter, the default), `km` (kilometer), `mi` (international mile), `nm` (nautical mile), `ft` (international foot).
          */
-        unit?: 'm' | 'km' | 'mi' | 'nm' | 'ft';
+        unit?: "m" | "km" | "mi" | "nm" | "ft";
         /**
          * The reference ellipsoid to use for geographic coordinates. Possible values are `WGS84` (the default), a common standard for Earth’s geometry, or `unit_sphere`, a perfect sphere of 1 meter radius.
          */
-        geoSystem?: 'WGS84' | 'unit_sphere';
+        geoSystem?: "WGS84" | "unit_sphere";
     }
 
     export interface CircleOptions extends DistanceOptions {
@@ -524,8 +566,8 @@ declare module "rethinkdb" {
     interface Expression<T> extends Writeable, Operation<T>, HasFields<Expression<number>> {
         (prop: string): Expression<any>;
         merge(query: Expression<Object>): Expression<Object>;
-        append(prop: string): Expression<Object>;
-        contains(prop: string): Expression<boolean>;
+        append(prop: any | Expression<any>): Expression<Object>;
+        contains(prop: any | Expression<any>): Expression<boolean>;
 
         and(b: boolean | Expression<boolean>): Expression<boolean>;
         or(b: boolean | Expression<boolean>): Expression<boolean>;
@@ -538,7 +580,7 @@ declare module "rethinkdb" {
         lt(value: T): Expression<boolean>;
         le(value: T): Expression<boolean>;
 
-        add(n: number): Expression<number>;
+        add(...numbers: (number | Expression<number>)[]): Expression<number>;
 
         /**
          * Subtract two numbers.
@@ -549,7 +591,7 @@ declare module "rethinkdb" {
          *
          *     r.expr(2).sub(2).run(conn, callback)
          */
-        sub(n: number, ...numbers: number[]): Expression<number>;
+        sub(...numbers: (number | Expression<number>)[]): Expression<number>;
 
         /**
          * Retrieve how many seconds elapsed between today and `date`.
@@ -562,9 +604,9 @@ declare module "rethinkdb" {
          */
         sub(date: Time): Expression<number>;
 
-        mul(n: number): Expression<number>;
-        div(n: number): Expression<number>;
-        mod(n: number): Expression<number>;
+        mul(...numbers: (number | Expression<number>)[]): Expression<number>;
+        div(...numbers: (number | Expression<number>)[]): Expression<number>;
+        mod(...numbers: (number | Expression<number>)[]): Expression<number>;
 
         distance(geometry: Geometry, options?: DistanceOptions): Expression<number>;
 
@@ -648,6 +690,15 @@ declare module "rethinkdb" {
     }
 
     interface Operation<T> {
+        /**
+         * Get a single field from an object. If called on a sequence, gets that field from every object in the sequence, skipping objects that lack it.
+         * 
+         * Example: What was Iron Man's first appearance in a comic?
+         * 
+         * r.table('marvel').get('IronMan')('firstAppearance').run(conn, callback)
+         */
+        (prop: string): Expression<any>;
+
         /**
          * Run a query on a connection. The callback will get either an error, a single JSON result, or a cursor, depending on the query.
          *

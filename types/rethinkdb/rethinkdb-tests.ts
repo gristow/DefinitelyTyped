@@ -24,7 +24,7 @@ r.connect({ host: "localhost", port: 28015 }, function(err: Error, conn: r.Conne
 
     r.table("players").merge((player: r.Expression<Object>) => {
       return {
-        teams: r.table("games").getAll(player('teamIds')).coerceTo('array'),
+        teams: r.table("games").getAll(player("teamIds")).coerceTo("array"),
       }
     })
     .run(conn, errorAndCursorCallback);
@@ -39,7 +39,7 @@ r.connect({ host: "localhost", port: 28015 }, function(err: Error, conn: r.Conne
 
     testDb.tableCreate("users").run(conn, function(err, stuff) {
         const users = testDb.table("users");
-        users.wait({waitFor: 'ready_for_reads'});
+        users.wait({waitFor: "ready_for_reads"});
         users.insert({ name: "bob" }).run(conn, function() {
         });
 
@@ -85,7 +85,48 @@ r.connect({ host: "localhost", port: 28015 }).then(function(conn: r.Connection) 
     r.table("players").filter(r.row.hasFields("games_won").not()).run(conn).then(cursorCallback);
     r.table("players").filter(r.row.hasFields({ "games_won": { "championships": true } }).not()).run(conn).then(cursorCallback);
 
-    testDb.tableCreate("users").run(conn).then(function() {
+    // Check pluck & without on Operation<TObjectType>
+    r.table("players").get("lebron_james").pluck("height", "games_won").run(conn).then(lebron => console.log(lebron));
+    r.table("players").get("lebron_james").without("height", "games_won").run(conn).then(lebron => console.log(lebron));
+
+    // Check pluck & without on Sequence
+    r.table("players").pluck("height", "games_won").run(conn).then(cursor => cursor.toArray());
+    r.table("players").without("height", "games_won").coerceTo("array").run(conn);
+
+    // Get all using a multi index:
+    r.table("players").getAll(["forward", "basketball"], { index: "positionAndSport" });
+
+    // Get all using mutliple keys:
+    r.table("players").getAll("lebron_james", "roger_federer", "serena_williams").coerceTo("array").run(conn);
+
+    // Get all using multiple keys & a multi index:
+    r.table("players")
+        .getAll(["forward", "basketball"], ["forward", "hockey"], { index: "positionAndSport" })
+        .coerceTo("array")
+        .run(conn);
+
+    // Append elements to an array, see if they exist:
+    r.expr([1, 2, "a", "b"]).append(true).append(4).append(new Date()).append(r.expr(23)).contains(4).run(conn);
+    r.expr([1, 2, "a", "b"]).append(true).append(4).append(new Date()).append(r.expr(23)).contains(4).run(conn);
+
+    // Do math on numbers and expressions:
+    // What percent are basketball players?
+    r.expr(100)
+        .mul(r.table("players").filter({ sport: "basketball" }).count())
+        .div(r.table("players").count())
+        .add(10)
+        .sub(r.expr(10))
+        .mul(1, r.expr(1))
+        .div(1, r.expr(1))
+        .run(conn);
+    
+    // Get one specific row value for a player:
+    r.table("players").get("lebron_james")("height").run(conn).then(console.log.bind(console));
+
+    // Get all players' heights:
+    r.table("players")("height").run(conn).then(cursor => cursor.toArray()).then(console.log.bind(console));
+
+    testDb.tableCreate("users").run(conn).then(function () {
         const users = testDb.table("users");
 
         users.insert({ name: "bob" }).run(conn, function() {
@@ -104,3 +145,4 @@ r.connect({ host: "localhost", port: 28015 }).then(function(conn: r.Connection) 
         });
     });
 });
+
