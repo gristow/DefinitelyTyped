@@ -47,12 +47,14 @@ declare module 'rethinkdb' {
     export function polygon(...point: Point[]): Polygon;
     export function circle(point: Point, radius: number, options?: CircleOptions): Geometry;
 
+    export function args<T>(expr: Expression<T>): Arguments;
+
     export var count: Aggregator;
     export function sum(prop: string): Aggregator;
     export function avg(prop: string): Aggregator;
 
     export const row: Row;
-    export function expr(stuff: any): Expression<any>;
+    export function expr<T>(stuff: T): Expression<T>;
 
     export function now(): Expression<Time>;
     export function epochTime(): Expression<Time>;
@@ -260,6 +262,8 @@ declare module 'rethinkdb' {
         hasFields(...fields: string[]): T;
     }
 
+    interface Arguments {}
+
     interface Geometry {}
 
     interface Point {}
@@ -288,19 +292,22 @@ declare module 'rethinkdb' {
         insert(obj: any[], options?: InsertOptions): Operation<WriteResult>;
         insert(obj: any, options?: InsertOptions): Operation<WriteResult>;
 
-        get<TObjectType extends object>(key: Key): Operation<TObjectType | null> & Writeable;
-        get<TObjectType extends object>(key: Expression<Key>): Operation<TObjectType | null> & Writeable;
+        get<TObjectType extends object>(key: Key): Expression<TObjectType> & Operation<TObjectType | null> & Writeable;
+        get<TObjectType extends object>(key: Expression<Key>): Expression<TObjectType> & Operation<TObjectType | null> & Writeable;
 
         /**
          * Get all documents matching one or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
         getAll(...keys: Key[]): Sequence;
+        getAll(rArgs: Arguments): Sequence;
         /**
          * Get all documents matching a key on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
          */
         getAll(key: Key | Key[], index?: Index): Sequence; // without index defaults to primary key
+        getAll(rArgs: Arguments, index?: Index): Sequence;
+
         /**
          * Get all documents matching 2 or more keys on a simple index; defaults to primary key if no index provided.
          * See [getAll](https://www.rethinkdb.com/api/javascript/get_all/)
@@ -389,6 +396,15 @@ declare module 'rethinkdb' {
     }
 
     interface Sequence extends Operation<Cursor>, Writeable {
+        /**
+         * Get a single field from an object. If called on a sequence, gets that field from every object in the sequence, skipping objects that lack it.
+         *
+         * Example: What was Iron Man's first appearance in a comic?
+         *
+         * r.table('marvel').get('IronMan')('firstAppearance').run(conn, callback)
+         */
+        (prop: string): Sequence;
+
         between(lower: any, upper: any, index?: Index): Sequence;
 
         /**
@@ -414,9 +430,9 @@ declare module 'rethinkdb' {
          *     r.table('equipment').get('pimento_sandwich')
          * ).run(conn, callback)
          */
-        merge(object: Object): Sequence;
+        merge(object: object): Sequence;
         merge(cb: ExpressionFunction<Expression<any>>): Sequence;
-        merge(query: Expression<Object>): Sequence;
+        merge(query: Expression<object>): Sequence;
 
         filter(rql: ExpressionFunction<boolean>): Sequence;
         filter(rql: Expression<boolean>): Sequence;
@@ -590,9 +606,9 @@ declare module 'rethinkdb' {
          *     r.table('equipment').get('pimento_sandwich')
          * ).run(conn, callback)
          */
-        merge(query: Expression<Object>): Expression<Object>;
-        merge(object: Object): Expression<Object>;
-        merge(cb: ExpressionFunction<Expression<any>>): Expression<Object>;
+        merge(query: Expression<object>): Expression<object>;
+        merge(object: object): Expression<object>;
+        merge(cb: ExpressionFunction<Expression<object>>): Expression<object>;
 
         append(element: any | Expression<any>): Expression<Object>;
         /**
@@ -608,6 +624,38 @@ declare module 'rethinkdb' {
          */
         contains(element: any | Expression<any> | ExpressionFunction<boolean>): Expression<boolean>;
 
+        /**
+         * Remove the elements of one array from another array.
+         * @param array 
+         * 
+         * Example: Retrieve Iron Man’s equipment list without boots.
+         * 
+         * r.table('marvel').get('IronMan')('equipment')
+         *   .difference(['Boots'])
+         *   .run(conn, callback)
+         * 
+         * Example: Remove Iron Man’s boots from his equipment.
+         * 
+         * r.table('marvel').get('IronMan')
+         *   .update({
+         *     equipment: r.row('equipment').difference(['Boots'])
+         *   })
+         *   .run(conn, callback)
+         */
+        difference<T>(array: Expression<T[]>):Expression<T[]>
+        difference<T>(array: T[]):Expression<T[]>
+
+        /**
+         * Add a several values to an array and return it as a set (an array with distinct values).
+         * @param array 
+         * 
+         * Example: Retrieve Iron Man’s equipment list with the addition of some new boots and an arc reactor.
+         * 
+         * r.table('marvel').get('IronMan')('equipment').setUnion(['newBoots', 'arc_reactor']).run(conn, callback)
+         */
+        setUnion<T>(array: Expression<T[]>):Expression<T[]>
+        setUnion<T>(array: T[]):Expression<T[]>
+        
         and(b: boolean | Expression<boolean>): Expression<boolean>;
         or(b: boolean | Expression<boolean>): Expression<boolean>;
         eq(v: any | Expression<any>): Expression<boolean>;
@@ -729,15 +777,6 @@ declare module 'rethinkdb' {
     }
 
     interface Operation<T> {
-        /**
-         * Get a single field from an object. If called on a sequence, gets that field from every object in the sequence, skipping objects that lack it.
-         *
-         * Example: What was Iron Man's first appearance in a comic?
-         *
-         * r.table('marvel').get('IronMan')('firstAppearance').run(conn, callback)
-         */
-        (prop: string): Expression<any>;
-
         /**
          * Run a query on a connection. The callback will get either an error, a single JSON result, or a cursor, depending on the query.
          *

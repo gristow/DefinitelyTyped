@@ -49,6 +49,23 @@ r.connect({ host: 'localhost', port: 28015 }, function(err: Error, conn: r.Conne
         })
         .run(conn, errorAndCursorCallback);
 
+    // Merge on an Expression rather than a sequence
+    r.table('players')
+        .get('lebron_james')
+        .merge({
+            teamName: r.table('teams').get(r.row('teamId'))('name'),
+            teams: r.table('teams').getAll(r.args(r.row('teamIds'))).coerceTo('array')
+        })
+        .run(conn);
+
+    // Array difference
+    r.table('players')
+        .get('lebron_james')
+        ('teamIds')
+        .difference(['cleveland_cavaliers'])
+        .run(conn);
+    r.expr([0, 1, 2, 3, 4, 5]).difference([3]).run(conn);
+    
     const center = r.point(123, 456);
     r.table('geo')
         .getIntersecting(r.circle(center, 1000, { unit: 'm' }), { index: 'location' })
