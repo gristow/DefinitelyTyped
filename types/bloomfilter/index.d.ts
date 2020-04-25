@@ -3,7 +3,11 @@
 // Definitions by: slawiko <https://github.com/slawiko>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 
-export class BloomFilter {
+declare module "bloomfilter" {
+    export = BloomFilter;
+}
+
+declare class BloomFilter {
     buckets: Int32Array;
 
     /**
